@@ -126,10 +126,18 @@ sub init_config() {
   return @servers_config;
 }
 
+# kafkaliu: 
+# 1. check node version.
+# 2. set running status using the specified file.
+# 3. collect all and read server status and check whether it is the same to the origin.
+# 4. make sure the master dead or not.
+# 5. make sure the slaves replicating from the origin master.
+# 6. check last failover
 sub check_settings($) {
   my $servers_config_ref = shift;
   my @servers_config     = @$servers_config_ref;
   my $dead_master;
+  # 1
   MHA::ManagerUtil::check_node_version($log);
   $_status_handler =
     new MHA::FileStatus( conffile => $g_config_file, dir => $g_workdir );
@@ -139,10 +147,13 @@ sub check_settings($) {
   $_failover_complete_file = "$g_workdir/$appname.failover.complete";
   $_failover_error_file    = "$g_workdir/$appname.failover.error";
 
+  # 2
   $_status_handler->update_status($MHA::ManagerConst::ST_FAILOVER_RUNNING_S);
 
   $_server_manager = new MHA::ServerManager( servers => \@servers_config );
   $_server_manager->set_logger($log);
+  
+  # 3
   if ($g_interactive) {
     $_server_manager->connect_all_and_read_server_status();
   }
@@ -176,6 +187,7 @@ sub check_settings($) {
   my @alive_servers = $_server_manager->get_alive_servers();
   my @alive_slaves  = $_server_manager->get_alive_slaves();
 
+  # 4
   #Make sure that dead server is current master only
   $log->info("Dead Servers:");
   $_server_manager->print_dead_servers();
@@ -231,6 +243,7 @@ sub check_settings($) {
     $_saved_file_suffix = ".sql";
   }
 
+  # 5
   foreach my $slave (@alive_slaves) {
 
     # Master_Host is either hostname or IP address of the current master
@@ -258,6 +271,7 @@ sub check_settings($) {
   }
   $_server_manager->validate_num_alive_servers( $dead_master, 1 );
 
+  # 6
   # Checking last failover error file
   if ($g_ignore_last_failover) {
     MHA::NodeUtil::drop_file_if($_failover_error_file);
@@ -1608,7 +1622,7 @@ sub send_report {
     }
   }
 }
-
+# kafkaliu: The main logic of master failover.
 sub do_master_failover {
   my $error_code = 1;
   my ( $dead_master, $new_master );
