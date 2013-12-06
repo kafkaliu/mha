@@ -17,8 +17,6 @@
 #  Foundation, Inc.,
 #  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-# kafka: can be ignored for mysql 5.1+
-
 package MHA::BinlogPosFinderXid;
 
 use strict;
